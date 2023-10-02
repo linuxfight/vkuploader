@@ -1,0 +1,20 @@
+[package]
+name = "vkuploader"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+reqwest = { version = "0.11.18", features = ["json", "multipart", "stream"] }
+tokio = { version = "1.29.1", features = ["full"] }
+serde = { version = "1.0.180", features = ["derive"] }
+serde_json = "1.0.104"
+progress_bar = "1.0.5"
+num-integer = "0.1.45"
+
+[profile.dev]
+opt-level = 0
+
+[profile.release]
+opt-level = 3
