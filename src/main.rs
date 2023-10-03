@@ -25,7 +25,14 @@ struct Album {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let config_file = File::open("config.json")?;
+    let mut config_path = String::new();
+    println!("Enter path to config: ");
+    std::io::stdin().read_line(&mut config_path).unwrap();
+    let trimmed_config_path = config_path.trim();
+    println!("Path to config: {}", &trimmed_config_path);
+    println!("Started config opening");
+    let config_file = File::open(&trimmed_config_path)?;
+    println!("Config file opened");
     let reader = BufReader::new(config_file);
     let config: Config = serde_json::from_reader(reader)?;
     let client = Client::new();
@@ -34,6 +41,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut file_number = 1;
         let mut form = Form::new();
         let entries: Vec<_> = read_dir(&album.path)?.collect();
+        println!("Opened directory {}", &album.path.to_str().unwrap());
         init_progress_bar(div_ceil(entries.len(), config.max_uploads));
         set_progress_bar_action(format!("Album {}", album.album_id).as_str(), Color::Blue, Style::Bold);
         for (_index, entry) in entries.into_iter().enumerate() {
