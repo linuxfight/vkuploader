@@ -19,7 +19,6 @@ struct Config {
 
 #[derive(Serialize, Deserialize)]
 struct Album {
-    album_id: String,
     path: PathBuf
 }
 
@@ -41,9 +40,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let mut file_number = 1;
         let mut form = Form::new();
         let entries: Vec<_> = read_dir(&album.path)?.collect();
-        println!("Opened directory {}", &album.path.to_str().unwrap());
+        let album_name = album.path.to_str().unwrap().split("/").last().unwrap();
+        println!("Creating album {}", &album_name);
+        let resp = &client
+            .post("https://api.vk.com/method/photos.createAlbum")
+            .form(&[
+                ("access_token", &config.token),
+                ("title", &album_name.to_string()),
+                ("group_id", &config.group_id),
+                ("v", &config.v)
+            ])
+            .send()
+            .await?
+            .json::<serde_json::Value>()
+            .await?;
+        let album_id = resp["response"]["id"]
+            .as_u64().unwrap();
         init_progress_bar(div_ceil(entries.len(), config.max_uploads));
-        set_progress_bar_action(format!("Album {}", album.album_id).as_str(), Color::Blue, Style::Bold);
+        set_progress_bar_action(format!("Album {}", &album_id).as_str(), Color::Blue, Style::Bold);
         for (_index, entry) in entries.into_iter().enumerate() {
             if let Ok(entry) = entry {
                 let file_path = entry.path();
@@ -56,7 +70,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 file_number += 1;
 
                 if file_number > config.max_uploads {
-                    upload_photos(&client, &album, &config, form).await?;
+                    upload_photos(&client, &album_id, &config, form).await?;
                     inc_progress_bar();
                     file_number = 1;
                     form = Form::new();
@@ -65,7 +79,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         if file_number > 1 {
-            upload_photos(&client, &album, &config, form).await?;
+            upload_photos(&client, &album_id, &config, form).await?;
             inc_progress_bar();
         }
 
@@ -77,14 +91,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 async fn upload_photos(
     client: &Client,
-    album: &Album,
+    album_id: &u64,
     config: &Config,
     form: Form
 ) -> Result<(), Box<dyn std::error::Error>> {
     let resp = &client
         .post("https://api.vk.com/method/photos.getUploadServer")
         .form(&[
-            ("album_id", &album.album_id),
+            ("album_id", album_id.to_string().as_str()),
             ("access_token", &config.token),
             ("group_id", &config.group_id),
             ("v", &config.v),
@@ -119,7 +133,7 @@ async fn upload_photos(
     let _resp = &client
         .post("https://api.vk.com/method/photos.save")
         .form(&[
-            ("album_id", &album.album_id.as_str()),
+            ("album_id", album_id.to_string().as_str()),
             ("group_id", &config.group_id.as_str()),
             ("access_token", &config.token.as_str()),
             ("v", &config.v.as_str()),
